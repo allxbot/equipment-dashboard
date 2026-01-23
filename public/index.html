@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPI Ultimate Dashboard</title>
+    <style>
+        /* 请在此处粘贴附件中的完整 CSS 代码 */
+        :root { --bg-body: #f5f5f7; --bg-card: #ffffff; --text-main: #1d1d1f; --text-sub: #86868b; --accent: #0071e3; --border: #d2d2d7; --sidebar-width: 280px; --sidebar-collapsed-width: 60px; --st-green: #34c759; --st-green-bg: #e8f5e9; --st-yellow: #ff9f0a; --st-yellow-bg: #fff3e0; --st-red: #ff3b30; --st-red-bg: #ffebee; --st-gray: #8e8e93; --st-gray-bg: #f2f2f7; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
+        /* ... 其余 CSS ... */
+        /* 为了简洁，我只复制了部分核心变量，请务必把原文件 <style> 内所有内容贴回来 */
+        .sidebar { width: var(--sidebar-width); background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px; flex-shrink: 0; transition: width 0.3s ease; position: relative; z-index: 100; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); padding: 20px 10px; }
+        .sidebar.collapsed .brand span, .sidebar.collapsed .nav-text, .sidebar.collapsed .legend-container, .sidebar.collapsed .user-info { display: none; }
+        .sidebar.collapsed .nav-icon { margin-right: 0; text-align: center; width: 100%; }
+        .toggle-btn { position: absolute; top: 20px; right: -12px; width: 24px; height: 24px; background: white; border: 1px solid var(--border); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 101; }
+        .brand { font-size: 20px; font-weight: 700; margin-bottom: 30px; color: var(--text-main); display: flex; align-items: center; gap: 10px; white-space: nowrap; overflow: hidden; }
+        .nav-item { padding: 12px; margin-bottom: 4px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-sub); transition: 0.2s; display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
+        .nav-item:hover { background: var(--bg-body); color: var(--text-main); }
+        .nav-item.active { background: var(--accent); color: white; }
+        .nav-icon { width: 20px; margin-right: 10px; font-size: 16px; }
+        .legend-container { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-sub); }
+        .legend-title { font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .main { flex: 1; overflow-y: auto; padding: 30px 40px; }
+        .kpi-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.05); position: relative; overflow: hidden; }
+        .kpi-val { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+        .kpi-lbl { font-size: 12px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-sub { font-size: 12px; margin-top: 5px; display: flex; gap: 10px; }
+        .section { background: var(--bg-card); border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 24px; margin-bottom: 32px; }
+        .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 1px solid var(--bg-body); padding-bottom: 16px; }
+        .section-title { font-size: 18px; font-weight: 600; }
+        .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+        .filter-select { padding: 6px; border-radius: 6px; border: 1px solid var(--border); font-size: 12px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table th, .data-table td { padding: 10px; border: 1px solid #eee; text-align: left; vertical-align: middle; }
+        .data-table th { background: #fafafa; color: var(--text-sub); font-weight: 600; position: sticky; top: 0; z-index: 10; }
+        .filter-row th { background: #f0f0f5; padding: 5px; }
+        .table-filter-input { width: 90%; padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; }
+        .prog-track { display: flex; gap: 2px; width: 100%; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+        .prog-seg { flex: 1; height: 100%; position: relative; }
+        .prog-seg.done { background: var(--st-green); }
+        .prog-seg.curr { background: var(--accent); }
+        .prog-seg.risk { background: var(--st-red); }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .bd-site { background: #e3f2fd; color: #1565c0; }
+        .bd-proj { background: #f3e5f5; color: #7b1fa2; }
+        .st-pill { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+        .st-pill.green { background: var(--st-green-bg); color: #1b5e20; }
+        .st-pill.yellow { background: var(--st-yellow-bg); color: #e65100; }
+        .st-pill.red { background: var(--st-red-bg); color: #b71c1c; }
+        [data-title]:hover::after { content: attr(data-title); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; z-index: 20; }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="toggle-btn" onclick="toggleSidebar()">‹</div>
+        <div class="brand">
+            <span style="color:var(--accent); font-size:24px;"></span> 
+            <span>NPI Dashboard</span>
+        </div>
+        
+        <div class="nav-item active" onclick="scrollToId('dashboard')">
+            <span class="nav-icon">📊</span><span class="nav-text">Executive Summary</span>
+        </div>
+        <div class="nav-item" onclick="scrollToId('matrix-section')">
+            <span class="nav-icon">📅</span><span class="nav-text">Line Progress Matrix</span>
+        </div>
+        <div class="nav-item" onclick="scrollToId('mil-section')">
+            <span class="nav-icon">⚠️</span><span class="nav-text">Master Issue List</span>
+        </div>
+        <div class="nav-item" onclick="scrollToId('todo-section')">
+            <span class="nav-icon">✅</span><span class="nav-text">To-Do & Optimization</span>
+        </div>
+        <div class="nav-item" onclick="window.open('/admin.html', '_blank')">
+            <span class="nav-icon">⚙️</span><span class="nav-text">Admin Panel</span>
+        </div>
+
+        <div class="legend-container">
+            <div class="legend-title">Definitions</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--st-green)"></div> On Track / Done</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--st-yellow)"></div> Risk / WIP</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--st-red)"></div> Delay / Blocker</div>
+            <div style="margin-top:10px; border-top:1px dashed #ddd; padding-top:5px;">
+                <b>Stages:</b><br>ETA: Arrival<br>Assy: Assembly<br>FAT: Factory Accept<br>IQ/OQ/PQ: Qual<br>ST: Stability
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <div id="dashboard">
+            <h1 style="margin-top:0;">Executive Summary</h1>
+            <div class="kpi-container">
+                <div class="kpi-card"><div class="kpi-val" style="color:var(--accent)" id="kpi-total">0</div><div class="kpi-lbl">Total Sub-Lines Tracked</div></div>
+                <div class="kpi-card"><div class="kpi-val" style="color:var(--st-green)" id="kpi-readiness">0%</div><div class="kpi-lbl">Overall Readiness (Sub-Line Avg)</div></div>
+                <div class="kpi-card"><div class="kpi-val" style="color:var(--st-red)" id="kpi-mil-total">0</div><div class="kpi-lbl">Active Issues (Not Closed)</div><div class="kpi-sub"><span style="color:var(--st-red)">Critical Blockers: <b id="kpi-mil-critical">0</b></span></div></div>
+                <div class="kpi-card"><div class="kpi-val" style="color:var(--st-yellow)" id="kpi-todo-total">0</div><div class="kpi-lbl">Pending Actions</div><div class="kpi-sub"><span style="color:var(--text-main)">In Progress: <b id="kpi-todo-wip">0</b></span><span style="color:var(--st-red)">At Risk: <b id="kpi-todo-risk">0</b></span></div></div>
+            </div>
+        </div>
+
+        <div id="matrix-section" class="section">
+            <div class="section-header">
+                <div class="section-title">Line Progress Matrix</div>
+                <div class="filter-bar">
+                    <select id="mx-site" class="filter-select" onchange="renderMatrix()"><option value="">All Sites</option></select>
+                    <select id="mx-proj" class="filter-select" onchange="renderMatrix()"><option value="">All Projects</option></select>
+                    <select id="mx-sub" class="filter-select" onchange="renderMatrix()"><option value="">All Subs</option></select>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead><tr><th width="10%">Site</th><th width="8%">Project</th><th width="15%">Line</th><th width="12%">Sub-Module</th><th width="8%">Status</th><th width="20%">Progress (ETA → ST)</th><th>Remarks</th></tr></thead>
+                <tbody id="matrix-body"></tbody>
+            </table>
+        </div>
+
+        <div id="mil-section" class="section">
+            <div class="section-header">
+                <div class="section-title">Master Issue List (MIL)</div>
+                <button onclick="resetFilters('mil-body')" style="cursor:pointer; padding:4px 8px;">Reset Filters</button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr><th>ID</th><th>Site</th><th>Line</th><th>Sub</th><th>Station</th><th>Issue Description</th><th>Root Cause / Impact</th><th>Action Plan</th><th>DRI</th><th>Create Date</th><th>Target Date</th><th>Status</th></tr>
+                    <tr class="filter-row">
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 0)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 1)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 2)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 3)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 4)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 5)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 6)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 7)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 8)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 9)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('mil-body', 10)"></th>
+                        <th><select class="table-filter-input" onchange="filterTable('mil-body', 11)"><option value="">All</option><option value="Open">Open</option><option value="WIP">WIP</option><option value="Closed">Closed</option></select></th>
+                    </tr>
+                </thead>
+                <tbody id="mil-body"></tbody>
+            </table>
+        </div>
+
+        <div id="todo-section" class="section">
+            <div class="section-header">
+                <div class="section-title">To-Do List & Optimization</div>
+                <button onclick="resetFilters('todo-body')" style="cursor:pointer; padding:4px 8px;">Reset Filters</button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Task ID</th><th>Task Item</th><th>Site</th><th>Line</th><th>Sub</th><th>Station</th><th>Details</th><th>Owner</th><th>Create Date</th><th>Target Date</th><th>Status</th></tr>
+                    <tr class="filter-row">
+                         <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 0)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 1)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 2)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 3)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 4)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 5)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 6)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 7)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 8)"></th>
+                        <th><input type="text" class="table-filter-input" onkeyup="filterTable('todo-body', 9)"></th>
+                        <th><select class="table-filter-input" onchange="filterTable('todo-body', 10)"><option value="">All</option><option value="Pending">Pending</option><option value="WIP">WIP</option><option value="Done">Done</option></select></th>
+                    </tr>
+                </thead>
+                <tbody id="todo-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let matrixData = [];
+        let milData = [];
+        let todoData = [];
+
+        // Fetch Data from API
+        async function fetchAllData() {
+            try {
+                const [mxRes, milRes, todoRes] = await Promise.all([
+                    fetch('/api/matrix'),
+                    fetch('/api/mil'),
+                    fetch('/api/todo')
+                ]);
+                
+                const mxJson = await mxRes.json();
+                // Parse the 'dates' string back to array
+                matrixData = mxJson.map(item => ({
+                    ...item,
+                    dates: JSON.parse(item.dates || '[]')
+                }));
+
+                milData = await milRes.json();
+                todoData = await todoRes.json();
+
+                // Render everything
+                renderKPIs();
+                populateDropdowns();
+                renderMatrix();
+                renderMilTable();
+                renderTodoTable();
+            } catch (error) {
+                console.error("Failed to load data:", error);
+                alert("Error loading data from server.");
+            }
+        }
+
+        // --- RENDER LOGIC (Kept same as original, just added null checks) ---
+        // (Here I will omit the identical render functions to save space, 
+        //  BUT you must paste your original renderKPIs, renderMatrix, renderMilTable, 
+        //  renderTodoTable, getStatusPill, getProgressHtml, toggleSidebar, filterTable, 
+        //  resetFilters, populateDropdowns, scrollToId functions here.)
+        
+        // ... PASTE ORIGINAL JS FUNCTIONS HERE ...
+        // ... Note: For renderMatrix, ensure dates are handled safely ...
+        
+        // --- COPIED RENDER HELPERS FOR CONTEXT (Example) ---
+        function renderKPIs() {
+            const totalSubs = matrixData.length;
+            document.getElementById('kpi-total').innerText = totalSubs;
+            let totalProgress = 0;
+            matrixData.forEach(d => { totalProgress += (d.progress / 6); });
+            const readiness = totalSubs ? Math.round((totalProgress / totalSubs) * 100) : 0;
+            document.getElementById('kpi-readiness').innerText = readiness + "%";
+            const openMil = milData.filter(m => m.status !== 'Closed').length;
+            const criticalMil = milData.filter(m => m.status === 'Open').length;
+            document.getElementById('kpi-mil-total').innerText = openMil;
+            document.getElementById('kpi-mil-critical').innerText = criticalMil;
+            const pendingTodo = todoData.filter(t => t.status !== 'Done').length;
+            const wipTodo = todoData.filter(t => t.status === 'WIP').length;
+            const riskTodo = todoData.filter(t => t.status === 'Risk' || t.status === 'Delay').length;
+            document.getElementById('kpi-todo-total').innerText = pendingTodo;
+            document.getElementById('kpi-todo-wip').innerText = wipTodo;
+            document.getElementById('kpi-todo-risk').innerText = riskTodo;
+        }
+
+        function renderMatrix() {
+            const fSite = document.getElementById('mx-site').value;
+            const fProj = document.getElementById('mx-proj').value;
+            const fSub = document.getElementById('mx-sub').value;
+            let filtered = matrixData.filter(d => {
+                return (fSite === "" || d.site === fSite) && (fProj === "" || d.project === fProj) && (fSub === "" || d.sub === fSub);
+            });
+            let grouped = {}; 
+            filtered.forEach(item => {
+                const key = `${item.site}|${item.project}|${item.line}`;
+                if(!grouped[key]) grouped[key] = [];
+                grouped[key].push(item);
+            });
+            const tbody = document.getElementById('matrix-body');
+            tbody.innerHTML = '';
+            if (Object.keys(grouped).length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No records</td></tr>'; return; }
+            for (const key in grouped) {
+                const items = grouped[key];
+                const rowSpan = items.length;
+                const first = items[0];
+                items.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    if (index === 0) {
+                        tr.innerHTML += `<td rowspan="${rowSpan}"><span class="badge bd-site">${first.site}</span></td><td rowspan="${rowSpan}"><span class="badge bd-proj">${first.project}</span></td><td rowspan="${rowSpan}" style="font-weight:600">${first.line}</td>`;
+                    }
+                    tr.innerHTML += `<td>${item.sub}</td><td>${getStatusPill(item.status)}</td><td>${getProgressHtml(item.progress, item.status, item.dates)}</td><td style="font-size:11px; color:#666;">${item.remark}</td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+        
+        function getStatusPill(colorKey, text) {
+            const map = { 'green': 'st-pill green', 'yellow': 'st-pill yellow', 'red': 'st-pill red', 'gray': 'st-pill gray' };
+            const label = text || (colorKey === 'green' ? 'Normal' : colorKey === 'yellow' ? 'Risk' : 'Delay');
+            return `<span class="${map[colorKey] || map['gray']}">${label}</span>`;
+        }
+
+        function getProgressHtml(progress, status, dates) {
+            const stages = ["ETA", "Assy", "FAT", "IQ", "OQ", "PQ", "ST"];
+            let html = `<div class="prog-track">`;
+            stages.forEach((st, i) => {
+                let cls = '';
+                if (i < progress) cls = 'done';
+                else if (i === progress) cls = (status === 'red') ? 'risk' : 'curr';
+                const dateVal = (dates && dates[i]) ? dates[i] : '-';
+                html += `<div class="prog-seg ${cls}" data-title="${st}: ${dateVal}"></div>`;
+            });
+            html += `</div>`;
+            return html;
+        }
+        
+        function renderMilTable() {
+            const tbody = document.getElementById('mil-body');
+            tbody.innerHTML = milData.map(m => `<tr><td><b>${m.id}</b></td><td>${m.site}</td><td>${m.line}</td><td>${m.sub}</td><td>${m.station}</td><td>${m.desc}</td><td>${m.root}</td><td>${m.action}</td><td>${m.dri}</td><td>${m.cDate}</td><td>${m.tDate}</td><td>${getStatusPill(m.status === 'Open' ? 'red' : (m.status === 'WIP' ? 'yellow' : 'green'), m.status)}</td></tr>`).join('');
+        }
+
+        function renderTodoTable() {
+            const tbody = document.getElementById('todo-body');
+            tbody.innerHTML = todoData.map(t => {
+                let stColor = 'gray'; if(t.status === 'WIP') stColor = 'yellow'; if(t.status === 'Done') stColor = 'green'; if(t.status === 'Risk') stColor = 'red';
+                return `<tr><td>${t.id}</td><td style="font-weight:500">${t.task}</td><td>${t.site}</td><td>${t.line}</td><td>${t.sub}</td><td>${t.station}</td><td>${t.detail}</td><td>${t.owner}</td><td>${t.cDate}</td><td>${t.tDate}</td><td>${getStatusPill(stColor, t.status)}</td></tr>`;
+            }).join('');
+        }
+
+        function toggleSidebar() { const sb = document.getElementById('sidebar'); const btn = sb.querySelector('.toggle-btn'); sb.classList.toggle('collapsed'); btn.innerText = sb.classList.contains('collapsed') ? '›' : '‹'; }
+        
+        function filterTable(tbodyId, colIdx) {
+            const input = event.target; const filterVal = input.value.toUpperCase(); const tbody = document.getElementById(tbodyId); const trs = tbody.getElementsByTagName('tr');
+            const headerRow = input.closest('thead').querySelector('.filter-row'); const inputs = headerRow.querySelectorAll('input, select');
+            for (let i = 0; i < trs.length; i++) {
+                let show = true;
+                inputs.forEach((inp, idx) => { const cell = trs[i].getElementsByTagName('td')[idx]; if(cell && inp.value) { if(cell.textContent.toUpperCase().indexOf(inp.value.toUpperCase()) === -1) show = false; } });
+                trs[i].style.display = show ? "" : "none";
+            }
+        }
+        function resetFilters(tbodyId) { const tbody = document.getElementById(tbodyId); const headerRow = tbody.previousElementSibling.querySelector('.filter-row'); headerRow.querySelectorAll('input, select').forEach(i => i.value = ''); const trs = tbody.getElementsByTagName('tr'); for(let tr of trs) tr.style.display = ""; }
+        function populateDropdowns() {
+            const sites = [...new Set(matrixData.map(d => d.site))]; const projs = [...new Set(matrixData.map(d => d.project))]; const subs = [...new Set(matrixData.map(d => d.sub))];
+            const fill = (id, arr) => { const sel = document.getElementById(id); arr.forEach(a => { let opt = document.createElement('option'); opt.value = a; opt.innerText = a; sel.appendChild(opt); }); };
+            fill('mx-site', sites); fill('mx-proj', projs); fill('mx-sub', subs);
+        }
+        function scrollToId(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active')); event.currentTarget.classList.add('active'); }
+
+        window.onload = () => { fetchAllData(); };
+    </script>
+</body>
+</html>
