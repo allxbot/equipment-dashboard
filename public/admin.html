@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>NPI Admin</title>
+    <style>
+        /* 简单复用 CSS 风格 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: #f5f5f7; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        input, select { padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        button { background: #0071e3; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #0077ed; }
+        button.del { background: #ff3b30; margin-left: 5px; padding: 4px 8px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+        .tab-btn { background: #e3e3e3; color: #333; margin-right: 5px; }
+        .tab-btn.active { background: #0071e3; color: white; }
+    </style>
+</head>
+<body>
+
+<h1>NPI Dashboard Admin</h1>
+
+<div style="margin-bottom:20px;">
+    <button class="tab-btn active" onclick="switchTab('matrix')">Matrix</button>
+    <button class="tab-btn" onclick="switchTab('mil')">MIL</button>
+    <button class="tab-btn" onclick="switchTab('todo')">To-Do</button>
+</div>
+
+<div id="matrix-editor" class="card">
+    <h2>Add/Edit Matrix Line</h2>
+    <form onsubmit="saveMatrix(event)">
+        <div class="form-grid">
+            <input type="text" id="m-site" placeholder="Site" required>
+            <input type="text" id="m-proj" placeholder="Project" required>
+            <input type="text" id="m-line" placeholder="Line Name" required>
+            <input type="text" id="m-sub" placeholder="Sub-Module" required>
+            <select id="m-status"><option value="green">Green (Normal)</option><option value="yellow">Yellow (Risk)</option><option value="red">Red (Delay)</option><option value="gray">Gray (Pending)</option></select>
+            <input type="number" id="m-prog" placeholder="Progress (0-6)" min="0" max="6" required>
+            <input type="text" id="m-dates" placeholder='Dates JSON e.g. ["Done", "IP", "1/20"...]' value='["-","-","-","-","-","-","-"]'>
+            <input type="text" id="m-remark" placeholder="Remark">
+        </div>
+        <button type="submit">Add Entry</button>
+    </form>
+    
+    <h3>Current Data</h3>
+    <table id="matrix-table">
+        <thead><tr><th>ID</th><th>Line</th><th>Sub</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<div id="mil-editor" class="card" style="display:none;">
+    <h2>Add/Edit MIL</h2>
+    <form onsubmit="saveGeneric(event, 'mil')">
+        <div class="form-grid">
+            <input type="text" name="id" placeholder="MIL ID (e.g. MIL-001)" required>
+            <input type="text" name="site" placeholder="Site">
+            <input type="text" name="line" placeholder="Line">
+            <input type="text" name="sub" placeholder="Sub">
+            <input type="text" name="station" placeholder="Station">
+            <input type="text" name="desc" placeholder="Issue Desc">
+            <input type="text" name="root" placeholder="Root Cause">
+            <input type="text" name="action" placeholder="Action">
+            <input type="text" name="dri" placeholder="DRI">
+            <input type="text" name="cDate" placeholder="Create Date">
+            <input type="text" name="tDate" placeholder="Target Date">
+            <select name="status"><option value="Open">Open</option><option value="WIP">WIP</option><option value="Closed">Closed</option></select>
+        </div>
+        <button type="submit">Save MIL</button>
+    </form>
+    <table id="mil-table"><thead><tr><th>ID</th><th>Desc</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div id="todo-editor" class="card" style="display:none;">
+    <h2>Add/Edit To-Do</h2>
+    <form onsubmit="saveGeneric(event, 'todo')">
+        <div class="form-grid">
+            <input type="text" name="id" placeholder="Task ID (e.g. T-01)" required>
+            <input type="text" name="task" placeholder="Task Item">
+            <input type="text" name="site" placeholder="Site">
+            <input type="text" name="line" placeholder="Line">
+            <input type="text" name="sub" placeholder="Sub">
+            <input type="text" name="station" placeholder="Station">
+            <input type="text" name="detail" placeholder="Detail">
+            <input type="text" name="owner" placeholder="Owner">
+            <input type="text" name="cDate" placeholder="Create Date">
+            <input type="text" name="tDate" placeholder="Target Date">
+            <select name="status"><option value="Pending">Pending</option><option value="WIP">WIP</option><option value="Done">Done</option><option value="Risk">Risk</option></select>
+        </div>
+        <button type="submit">Save To-Do</button>
+    </form>
+    <table id="todo-table"><thead><tr><th>ID</th><th>Task</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table>
+</div>
+
+<script>
+    async function refresh() {
+        // Load Matrix
+        const mRes = await fetch('/api/matrix');
+        const mData = await mRes.json();
+        const mTbody = document.querySelector('#matrix-table tbody');
+        mTbody.innerHTML = mData.map(d => `<tr><td>${d.id}</td><td>${d.line}</td><td>${d.sub}</td><td>${d.status}</td><td><button class="del" onclick="del('matrix', ${d.id})">Del</button></td></tr>`).join('');
+
+        // Load MIL
+        const milRes = await fetch('/api/mil');
+        const milData = await milRes.json();
+        const milTbody = document.querySelector('#mil-table tbody');
+        milTbody.innerHTML = milData.map(d => `<tr><td>${d.id}</td><td>${d.desc}</td><td>${d.status}</td><td><button class="del" onclick="del('mil', '${d.id}')">Del</button></td></tr>`).join('');
+
+        // Load Todo
+        const tRes = await fetch('/api/todo');
+        const tData = await tRes.json();
+        const tTbody = document.querySelector('#todo-table tbody');
+        tTbody.innerHTML = tData.map(d => `<tr><td>${d.id}</td><td>${d.task}</td><td>${d.status}</td><td><button class="del" onclick="del('todo', '${d.id}')">Del</button></td></tr>`).join('');
+    }
+
+    async function saveMatrix(e) {
+        e.preventDefault();
+        const payload = {
+            site: document.getElementById('m-site').value,
+            project: document.getElementById('m-proj').value,
+            line: document.getElementById('m-line').value,
+            sub: document.getElementById('m-sub').value,
+            status: document.getElementById('m-status').value,
+            progress: parseInt(document.getElementById('m-prog').value),
+            dates: JSON.parse(document.getElementById('m-dates').value || '[]'),
+            remark: document.getElementById('m-remark').value
+        };
+        await fetch('/api/matrix', { method: 'POST', body: JSON.stringify(payload) });
+        refresh();
+    }
+
+    async function saveGeneric(e, type) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
+        await fetch(`/api/${type}`, { method: 'POST', body: JSON.stringify(payload) });
+        refresh();
+    }
+
+    async function del(type, id) {
+        if(!confirm('Delete?')) return;
+        await fetch(`/api/${type}/${id}`, { method: 'DELETE' });
+        refresh();
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.card').forEach(c => c.style.display = 'none');
+        document.getElementById(tab + '-editor').style.display = 'block';
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    window.onload = refresh;
+</script>
+
+</body>
+</html>
