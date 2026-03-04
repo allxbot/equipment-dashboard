@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的世界 AI桌游商业启蒙实操看板 (完整版)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --mc-green: #4ade80;
+            --mc-green-dark: #16a34a;
+            --mc-dirt: #8B4513;
+            --mc-stone: #9ca3af;
+            --mc-dark: #1f2937;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #e5e7eb;
+            background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .pixel-font { font-family: 'Press Start 2P', cursive; line-height: 1.5; }
+        .mc-card {
+            background-color: #ffffff;
+            border: 4px solid var(--mc-dark);
+            box-shadow: 6px 6px 0px var(--mc-dark);
+            border-radius: 8px;
+        }
+        .pixel-border { border: 4px solid var(--mc-dark); box-shadow: 2px 2px 0px var(--mc-dark); }
+        
+        .mc-checkbox {
+            appearance: none; width: 24px; height: 24px; border: 3px solid var(--mc-dark);
+            background-color: white; border-radius: 4px; cursor: pointer; position: relative;
+            flex-shrink: 0;
+        }
+        .mc-checkbox:checked { background-color: var(--mc-green); }
+        .mc-checkbox:checked::after {
+            content: '✔'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--mc-dark); font-weight: 900; font-size: 16px;
+        }
+        
+        .progress-bar-container {
+            width: 100%; background-color: #d1d5db; border: 3px solid var(--mc-dark);
+            height: 24px; border-radius: 12px; overflow: hidden; position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%; background-color: var(--mc-green); width: 0%;
+            transition: width 0.5s ease-out, background-color 0.5s; border-right: 3px solid var(--mc-dark);
+        }
+        
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        .day-block:hover { background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="text-gray-800 pb-20">
+
+    <!-- 顶部导航与Hero区 -->
+    <header class="max-w-4xl mx-auto pt-6 px-4">
+        <!-- 数据管理面板 -->
+        <div class="flex justify-end gap-3 mb-4">
+            <button onclick="exportConfig()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded pixel-border text-sm flex items-center gap-2">
+                💾 导出配置
+            </button>
+            <label class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded pixel-border text-sm cursor-pointer flex items-center gap-2">
+                📂 导入配置
+                <input type="file" id="importFile" accept=".json" class="hidden" onchange="importConfig(event)">
+            </label>
+            <button onclick="clearConfig()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded pixel-border text-sm flex items-center gap-2">
+                🗑️ 清空进度
+            </button>
+        </div>
+
+        <div class="bg-green-400 p-6 md:p-8 text-center relative overflow-hidden pixel-border rounded-lg shadow-xl">
+            <h1 class="pixel-font text-xl md:text-2xl text-gray-900 mb-2">MC 桌游全案执行看板</h1>
+            <p class="font-bold">18周 ✕ 5天 = 90个微型CEO任务</p>
+            
+            <div class="mt-6 bg-white/80 p-3 rounded border-2 border-gray-800 text-left">
+                <div class="flex justify-between items-center mb-1 font-bold text-sm">
+                    <span>全局总进度 (<span id="progress-count">0</span>/90)</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容区 (JS 动态渲染) -->
+    <main id="course-container" class="max-w-4xl mx-auto px-4 mt-8 space-y-10">
+        <!-- 内容将由 JavaScript 注入 -->
+    </main>
+
+    <!-- JS 数据与逻辑 -->
+    <script>
+        // 核心教案数据库 (18周 x 5天 = 90天详细SOP)
+        const courseData = [
+            { week: 1, title: "项目启动与定位", stage: 1, days: [
+                { day: 1, action: "【打字】键盘涂色区分区域。【商业】填写项目启动书。【AI】豆包语音自我介绍。", sop: "家长发白纸，孩子涂色。引导问：桌游给谁玩？" },
+                { day: 2, action: "【打字】闭眼触摸F、J键。【AI】输入指令生成3个桌游初步想法。", sop: "引导孩子复制【指令1】，抄下最喜欢的一个想法。" },
+                { day: 3, action: "【打字】ASDF基准键盲打练习15分钟。【产品】纸上画出游戏胜利条件。", sop: "要求孩子脱离屏幕，在纸上画图说明怎么才算赢。" },
+                { day: 4, action: "【AI】利用AI扩写选中的玩法。【商业】写下我的世界桌游的核心卖点。", sop: "提问AI：这游戏有哪些资源？记录金木石头等资源设定。" },
+                { day: 5, action: "【打字】纸质键盘满分默写测试。【总结】本周周会复盘。", sop: "家长担任考官，全对予以奖励。建立项目专属文件夹。" }
+            ]},
+            { week: 2, title: "英文盲打与玩法竞品", stage: 1, days: [
+                { day: 1, action: "【打字】G、H键盲打扩展。【AI】输入指令查3款同类儿童桌游玩法。", sop: "复制【指令2】。家长问：大富翁好玩在哪？" },
+                { day: 2, action: "【打字】练习打出简单的英文单词。【商业】定位：我们游戏比大富翁好玩在哪？", sop: "让孩子口头表达：我的游戏能打怪，大富翁不行。" },
+                { day: 3, action: "【打字】继续基准键测速。【产品】确立核心机制（骰子走格 vs 抽卡）。", sop: "二选一决策，不许改。用纸笔画一个简单的轮廓。" },
+                { day: 4, action: "【产品】头脑风暴，用笔列出3种怪物名称和血量。", sop: "纯纸笔作业，锻炼发散思维。如：僵尸(血3)、苦力怕(血5)。" },
+                { day: 5, action: "【AI】让AI给这3种怪物设计特殊技能。", sop: "引导孩子提问：给苦力怕设计一个自爆技能，怎么扣血？" }
+            ]},
+            { week: 3, title: "盲打提速与手写规则", stage: 1, days: [
+                { day: 1, action: "【打字】加入上排键位(QWER)练习。【产品】开始手写规则初稿-准备阶段。", sop: "用A4纸，写出游戏开始前要发几张牌，怎么洗牌。" },
+                { day: 2, action: "【打字】上排键位强化。【产品】手写规则-玩家回合。", sop: "写明：轮到我时，能做哪三件事（抽卡、打怪、结束）。" },
+                { day: 3, action: "【打字】英文短文输入盲打。【产品】手写规则-结算阶段。", sop: "写明：如果怪兽死了怎么办？如果我血没了怎么办？" },
+                { day: 4, action: "【AI】将规则拍照或概括念给AI听，让AI评价逻辑。", sop: "测试孩子的描述能力，看AI能否理解这个游戏。" },
+                { day: 5, action: "【产品】拿着手写规则草稿，给家长当面讲解一遍。", sop: "家长不打断，只在听完后说出哪里没听懂。" }
+            ]},
+            { week: 4, title: "中文输入与AI找Bug", stage: 1, days: [
+                { day: 1, action: "【打字】中文拼音输入法学习，认识标点符号位置。", sop: "教逗号、句号、书名号的按键方法。" },
+                { day: 2, action: "【打字】打开Word/WPS，将手写规则的“准备阶段”录入电脑。", sop: "重点练习退格键和回车换行，不追求速度。" },
+                { day: 3, action: "【打字】录入剩下的“玩家回合”和“结算阶段”。", sop: "完成后，教孩子使用保存快捷键 Ctrl+S。" },
+                { day: 4, action: "【AI】复制文档规则，使用AI找Bug。", sop: "复制【指令3】，把找出的漏洞在Word里进行修改补充。" },
+                { day: 5, action: "【产品】为文档调整字号和居中，打印出《电子规则V1.0》。", sop: "第一次产生正式的文本交付物，装订进文件夹。" }
+            ]},
+            { week: 5, title: "卡牌规划与成本初算", stage: 1, days: [
+                { day: 1, action: "【打字】打字小游戏放松。【产品】规划游戏一共需要几类卡牌。", sop: "列出分类表：资源卡X张，装备卡X张，怪物卡X张。" },
+                { day: 2, action: "【AI】让AI帮忙想10个酷炫的“我的世界”装备名称。", sop: "练习描述式提问，要求AI输出附带简单属性说明。" },
+                { day: 3, action: "【AI】AI绘画初体验，生成第一张【钻石剑】卡牌图。", sop: "复制【指令4】，教孩子如何保存图片到专属文件夹。" },
+                { day: 4, action: "【AI】继续生成不同风格的图，理解“提示词”的作用。", sop: "对比输入“剑”和“像素风发光的钻石剑”AI画出的区别。" },
+                { day: 5, action: "【商业】成本认知：用硬币推演纸张、彩印、包装盒的成本。", sop: "实物教学，家长准备硬币让孩子加总，填写《成本初算表》。" }
+            ]},
+            { week: 6, title: "手绘原型与阶段复盘", stage: 1, days: [
+                { day: 1, action: "【打字】阶段打字测速：中文要求≥12字/分钟。", sop: "使用金山打字通进行3分钟测试，记录成绩。" },
+                { day: 2, action: "【产品】脱离屏幕，在A3纸上手绘地图/棋盘草图。", sop: "画出格子、起点、怪物出生点。使用彩笔区分。" },
+                { day: 3, action: "【产品】手工绘制5张核心样卡（纸片人）。", sop: "用空白卡片画上火柴人级别的草图，标上数字。" },
+                { day: 4, action: "【商业】竞品对比：我的手绘和AI生成的图哪个好？为什么桌游需要美术？", sop: "理解“卖相”对商业的影响。" },
+                { day: 5, action: "【总结】阶段大复盘：用Word写50字调研与设计心得。", sop: "第一阶段结束颁奖，家长给予小零食或盖章奖励。" }
+            ]},
+            { week: 7, title: "印刷厂开工：AI量产", stage: 2, days: [
+                { day: 1, action: "【打字】在Word中学习插入表格。", sop: "准备好承载AI数据的容器。" },
+                { day: 2, action: "【AI】要求AI批量生成20张怪物卡的数据表格。", sop: "复制【指令5】（需修改数量）。教孩子复制表格到Word。" },
+                { day: 3, action: "【AI】要求AI批量生成40张资源/装备卡的数据。", sop: "同样复制表格合并。现在有了60张卡的数据字典。" },
+                { day: 4, action: "【排版】简单排版：将名字、属性用制表符分开排版在卡片格子里。", sop: "如果不会专业软件，用Word的标签打印格式即可。" },
+                { day: 5, action: "【产品】周末大工程：打印卡牌，手工剪裁出60张。", sop: "家长备好安全剪刀，监督孩子纯手工剪出第一套完整卡组。" }
+            ]},
+            { week: 8, title: "流程梳理与配套完善", stage: 2, days: [
+                { day: 1, action: "【打字】英文打字强化≥18字符/分。【产品】绘制玩家回合流程图。", sop: "在纸上画框图：开始->掷骰子->移动->判定。" },
+                { day: 2, action: "【AI】让AI梳理刚才画的流程图，看是否有死循环。", sop: "提问：如果怪物一直打不死，玩家会卡在这里吗？" },
+                { day: 3, action: "【产品】完善棋盘电子稿或精绘版手稿。", sop: "把第6周的草稿用尺子画标准，标注格子说明。" },
+                { day: 4, action: "【商业】细化成本：加上买剪刀、胶水、骰子的钱，重新算单套成本。", sop: "理解“工具耗材摊销”的初步概念。" },
+                { day: 5, action: "【产品】将剪好的卡牌、棋盘、规则书装进一个盒子里，命名V1.0。", sop: "完成产品的物理打包打包封装。" }
+            ]},
+            { week: 9, title: "家庭内测与抗压训练", stage: 2, days: [
+                { day: 1, action: "【打字】制作《试玩反馈记录表》并在电脑打印。", sop: "表格需包含：测试人、觉得哪里好玩、哪里不好玩。" },
+                { day: 2, action: "【产品】内测预演：孩子给父母做规则讲解（限时3分钟）。", sop: "考核孩子的表达清晰度。父母不评价，只点头。" },
+                { day: 3, action: "【产品】正式内测(上)：家庭试玩第一局。", sop: "父母故意犯规或提出质疑，孩子负责查阅规则书解决。" },
+                { day: 4, action: "【产品】正式内测(下)：家庭试玩第二局，体验极端情况。", sop: "父母故意疯狂抽卡，测试卡组厚度是否足够。" },
+                { day: 5, action: "【产品】记录反馈：填写至少5条测试出的严重Bug。", sop: "禁止孩子反驳父母，只能倾听并记录在案。" }
+            ]},
+            { week: 10, title: "卡牌平衡与热更新", stage: 2, days: [
+                { day: 1, action: "【打字】将纸质反馈Bug敲进电脑形成文档。", sop: "练习纠错打字，面对批评文字保持冷静。" },
+                { day: 2, action: "【AI】针对“太强/太弱”的卡，用AI请求数值调整方案。", sop: "复制【指令6】。让AI给出数学层面合理的修改建议。" },
+                { day: 3, action: "【产品】热更新：用黑笔直接在剪好的实体卡上涂改数值。", sop: "游戏开发中的修补过程，不用重新打印。" },
+                { day: 4, action: "【产品】修改Word里的规则电子版，打上补丁说明。", sop: "例如加上：每回合最多只能用1张回血卡。" },
+                { day: 5, action: "【产品】带着修改后的卡牌，和家长再快速验证玩一局。", sop: "验证Bug是否被解决。体验“迭代”的成就感。" }
+            ]},
+            { week: 11, title: "产品包装与定价策略", stage: 2, days: [
+                { day: 1, action: "【打字】撰写产品宣传文案：“全球首款9岁设计的MC桌游”。", sop: "要求写3句吸引人的广告语。" },
+                { day: 2, action: "【AI】利用AI生成游戏外包装封面海报图。", sop: "输入指令生成大图，保存并准备贴在盒子上。" },
+                { day: 3, action: "【商业】定价课：输入指令和AI讨论价格。", sop: "复制【指令7】。家长逼问：卖便宜了不赚钱，卖贵了我不买！" },
+                { day: 4, action: "【商业】敲定最终售价与目标利润，手写《定价策略表》。", sop: "比如：成本12，卖20，利润8。要攒钱买盲盒需要卖几套？" },
+                { day: 5, action: "【产品】将海报贴上纸盒，彻底完成V2.0商业化原型。", sop: "给盒子拍照留念，产品阶段正式结束。" }
+            ]},
+            { week: 12, title: "中期总结与同伴盲测", stage: 2, days: [
+                { day: 1, action: "【打字】用电脑写《中期开发总结报告》大纲。", sop: "总结前两阶段：我学到了什么，桌游变成了什么样。" },
+                { day: 2, action: "【AI】把大纲发给AI，让AI润色并生成正式报告。", sop: "学习AI的文案处理能力。" },
+                { day: 3, action: "【产品】邀请同龄同学来家里，进行同伴盲测。", sop: "孩子不许说话！丢说明书给同学看他们能不能玩起来。" },
+                { day: 4, action: "【商业】观察并记录同伴卡壳的死角。", sop: "家长提示：看到他刚才卡在哪了吗？记下来。" },
+                { day: 5, action: "【打字】编写FAQ（常见问题解答）补充到说明书末尾。", sop: "把同伴问的问题写成Q&A格式录入电脑。" }
+            ]},
+            { week: 13, title: "工厂量产准备", stage: 3, days: [
+                { day: 1, action: "【商业】列出最终的《印刷量产清单》。", sop: "决定印3套还是5套。需要多少张卡纸、几个盒子。" },
+                { day: 2, action: "【AI】用AI生成去打印店跟老板砍价的沟通话术。", sop: "“老板，我要印5套，能不能算便宜点？”" },
+                { day: 3, action: "【商业】去打印店实地操作打印与装订。", sop: "家长带去，让孩子亲自和店老板沟通文件和要求。" },
+                { day: 4, action: "【产品】手工大组装，将打印件组装成3-5套完整商品。", sop: "计件工作体验，体会体力劳动的辛苦。" },
+                { day: 5, action: "【商业】建立Excel/纸质的《库存管理表》。", sop: "记录：成品5套，待售5套，单价XX元。" }
+            ]},
+            { week: 14, title: "路演准备：展示PPT", stage: 3, days: [
+                { day: 1, action: "【AI】让AI帮忙写PPT大纲，梳理要向同学讲的内容。", sop: "复制【指令8】生成大纲。" },
+                { day: 2, action: "【打字】在电脑上制作极简版3页PPT或三张大海报。", sop: "页1：游戏名；页2：核心卖点；页3：价格与购买方式。" },
+                { day: 3, action: "【打字】根据AI的稿子，打字修改出一篇3分钟演讲稿。", sop: "要求用大白话，把重点标红加粗。" },
+                { day: 4, action: "【产品】对着镜子或家长脱稿背诵第一段。", sop: "强调眼神交流，声音要洪亮。" },
+                { day: 5, action: "【产品】脱稿完成3分钟完整的试讲。", sop: "家长拿手机计时并录像，让孩子看自己哪里结巴。" }
+            ]},
+            { week: 15, title: "模拟销售：抗压演练", stage: 3, days: [
+                { day: 1, action: "【商业】模拟销售情境A：同学嫌贵。", sop: "家长扮演同学：“20块太贵了，辣条才5毛。”孩子需抗压反驳。" },
+                { day: 2, action: "【AI】把昨天反驳失败的点告诉AI，要防守话术。", sop: "AI会教：桌游可以玩1个月，辣条吃完就没了。" },
+                { day: 3, action: "【商业】模拟销售情境B：长辈认为耽误学习。", sop: "家长扮演长辈：“玩物丧志！” 孩子需用“锻炼算数逻辑”来反驳。" },
+                { day: 4, action: "【商业】模拟销售情境C：同学说大富翁更好玩。", sop: "孩子需要拿出说明书证明“打怪机制”的独特性。" },
+                { day: 5, action: "【商业】实战预演：选定销售渠道与时间。", sop: "确定：本周六下午去小区广场，或者带去晚托班推销。" }
+            ]},
+            { week: 16, title: "最终实战：走向市场", stage: 3, days: [
+                { day: 1, action: "【商业】清点库存，准备收款二维码或零钱袋。", sop: "让孩子打印父母的收款码，体验真实收银。" },
+                { day: 2, action: "【商业】进行线下真实推销（行动日）。", sop: "家长在5米外旁观，绝不出面干预。孩子面对陌生拒绝。" },
+                { day: 3, action: "【商业】继续推销，争取打破零销量。", sop: "如果昨天失败，今天调整话术降价或者送小礼物促单。" },
+                { day: 4, action: "【商业】销售数据结算。", sop: "回家数钱。填写：卖出X套，营收X元，被拒绝X次。" },
+                { day: 5, action: "【商业】核算真实纯利润，发放孩子的劳动所得。", sop: "营收减去成本，剩下的钱交给孩子自己支配。" }
+            ]},
+            { week: 17, title: "商业复盘：结项报告", stage: 3, days: [
+                { day: 1, action: "【AI】将销售数据与拒绝原因发给AI，要求生成复盘大纲。", sop: "复制【指令9】，看AI怎么分析失败与成功。" },
+                { day: 2, action: "【打字】录入复盘报告：第一部分“我做得最好的地方”。", sop: "客观表扬自己。" },
+                { day: 3, action: "【打字】录入复盘报告：第二部分“存在的不足与退货原因”。", sop: "正视产品质量问题或自己太胆怯。" },
+                { day: 4, action: "【打字】录入复盘报告：第三部分“我的下一步规划”。", sop: "如果重来一次，我会怎么修改规则或定价？" },
+                { day: 5, action: "【总结】打印最终的《项目商业复盘报告》，装订成册。", sop: "一本厚厚的从想法到赚钱的档案书正式完成。" }
+            ]},
+            { week: 18, title: "终极测速与项目结营", stage: 3, days: [
+                { day: 1, action: "【打字】终极期末大考：英文盲打准确率、中文测速。", sop: "测试是否达成终极目标（中文25字/分）。" },
+                { day: 2, action: "【产品】回顾第一周写的《项目启动书》。", sop: "对比初心和最终成品的差异，感受成长。" },
+                { day: 3, action: "【商业】家庭内部分享会：给爷爷奶奶讲解项目全过程。", sop: "锻炼公众演讲与成果展示能力。" },
+                { day: 4, action: "【证书】家长打印《全能桌游产品经理认证证书》。", sop: "颁发证书，盖手印留念。" },
+                { day: 5, action: "【庆祝】结营庆功宴！吃大餐，庆祝18周的坚持！", sop: "感谢AI助手，保存好数字资产，圆满结束！" }
+            ]}
+        ];
+
+        const container = document.getElementById('course-container');
+        
+        // 动态生成DOM
+        function renderCourse() {
+            container.innerHTML = '';
+            
+            courseData.forEach((weekData) => {
+                let stageColor = weekData.stage === 1 ? 'bg-stone-700' : (weekData.stage === 2 ? 'bg-blue-600' : 'bg-yellow-600');
+                
+                let weekHtml = `
+                <div class="mc-card overflow-hidden mb-6">
+                    <details class="group">
+                        <summary class="p-4 bg-gray-100 cursor-pointer flex justify-between items-center hover:bg-gray-200 transition">
+                            <div class="flex items-center gap-4">
+                                <span class="${stageColor} text-white text-xs font-bold px-2 py-1 rounded pixel-border">S-${weekData.stage}</span>
+                                <h3 class="text-lg font-bold">第${weekData.week}周：${weekData.title}</h3>
+                            </div>
+                            <div class="text-sm font-bold text-blue-600 group-open:hidden">点击展开 ↓</div>
+                            <div class="text-sm font-bold text-gray-500 hidden group-open:block">收起 ↑</div>
+                        </summary>
+                        <div class="p-4 bg-white space-y-2 border-t-2 border-gray-300">
+                `;
+
+                weekData.days.forEach(day => {
+                    let cid = `mcb_w${weekData.week}_d${day.day}`;
+                    weekHtml += `
+                            <div class="day-block p-3 rounded border border-gray-200 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center transition">
+                                <div class="flex-1">
+                                    <div class="font-bold text-gray-800 mb-1">Day ${day.day}: ${day.action}</div>
+                                    <div class="text-sm text-gray-500 bg-gray-50 p-2 border-l-4 border-blue-400">💡 <strong>SOP与指导：</strong>${day.sop}</div>
+                                </div>
+                                <label class="flex items-center gap-2 cursor-pointer bg-green-50 hover:bg-green-100 px-3 py-2 rounded border border-green-200">
+                                    <input type="checkbox" id="${cid}" class="mc-checkbox dynamic-cb" onchange="saveProgress(this)">
+                                    <span class="font-bold text-sm text-green-800">打卡确认</span>
+                                </label>
+                            </div>
+                    `;
+                });
+
+                weekHtml += `</div></details></div>`;
+                container.innerHTML += weekHtml;
+            });
+            
+            // 默认展开第一周
+            document.querySelector('details').setAttribute('open', '');
+            
+            loadProgress();
+        }
+
+        // 保存进度到 LocalStorage
+        function saveProgress(el) {
+            localStorage.setItem(el.id, el.checked);
+            updateProgressBar();
+            
+            if(el.checked) {
+                el.parentElement.parentElement.classList.add('bg-green-50');
+            } else {
+                el.parentElement.parentElement.classList.remove('bg-green-50');
+            }
+        }
+
+        // 重新加载进度
+        function loadProgress() {
+            const checkboxes = document.querySelectorAll('.dynamic-cb');
+            checkboxes.forEach(cb => {
+                let val = localStorage.getItem(cb.id);
+                if(val === 'true') {
+                    cb.checked = true;
+                    cb.parentElement.parentElement.classList.add('bg-green-50');
+                }
+            });
+            updateProgressBar();
+        }
+
+        // 计算总进度
+        function updateProgressBar() {
+            const checkboxes = document.querySelectorAll('.dynamic-cb');
+            let checked = 0;
+            checkboxes.forEach(cb => { if(cb.checked) checked++; });
+            
+            const pct = Math.round((checked / 90) * 100);
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('progress-text').innerText = pct + '%';
+            document.getElementById('progress-count').innerText = checked;
+            
+            if(pct === 100) {
+                document.getElementById('progress-bar').style.backgroundColor = '#fbbf24'; // 金色
+            } else {
+                document.getElementById('progress-bar').style.backgroundColor = 'var(--mc-green)';
+            }
+        }
+
+        // --- 数据管理：导出配置文件 ---
+        function exportConfig() {
+            let data = {};
+            // 抓取所有以此项目开头的 LocalStorage 键
+            for(let i=0; i<localStorage.length; i++){
+                let key = localStorage.key(i);
+                if(key.startsWith('mcb_')){
+                    data[key] = localStorage.getItem(key);
+                }
+            }
+            
+            // 加上时间戳记录
+            data['export_date'] = new Date().toLocaleString();
+            
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MC桌游进度配置_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('已成功导出配置文件！你可以妥善保存或发送给其他设备。');
+        }
+
+        // --- 数据管理：导入配置文件 ---
+        function importConfig(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    let count = 0;
+                    for(let key in data) {
+                        if(key.startsWith('mcb_')) {
+                            localStorage.setItem(key, data[key]);
+                            count++;
+                        }
+                    }
+                    alert(`导入成功！共恢复了 ${count} 条打卡记录。`);
+                    loadProgress(); // 刷新界面
+                } catch (err) {
+                    alert('导入失败：文件格式不正确！请选择正确的 JSON 配置文件。');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // 重置 file input
+        }
+
+        // --- 数据管理：清空进度 ---
+        function clearConfig() {
+            if(confirm('⚠️ 警告：此操作将清空所有 90 天的打卡记录！\n建议先【导出配置】备份。\n\n确定要清空吗？')) {
+                const keysToRemove = [];
+                for(let i=0; i<localStorage.length; i++){
+                    let key = localStorage.key(i);
+                    if(key.startsWith('mcb_')){
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+                
+                const checkboxes = document.querySelectorAll('.dynamic-cb');
+                checkboxes.forEach(cb => { 
+                    cb.checked = false;
+                    cb.parentElement.parentElement.classList.remove('bg-green-50');
+                });
+                updateProgressBar();
+                alert('进度已全部清空。');
+            }
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', renderCourse);
+    </script>
+</body>
+</html>
